@@ -38,6 +38,20 @@ dmg_extract() {
     if [ -s "$raw" ]; then
       7z x -y -bd -o"$dest/raw" "$raw" >"$dest/7z-raw-extract.log" 2>&1 || true
       app="$(find "$dest/raw" -mindepth 2 -maxdepth 6 -name "*.app" -type d 2>/dev/null | head -1 || true)"
+      if [ -z "$app" ] && command -v fsapfsmount >/dev/null 2>&1; then
+        warn "DMG contains APFS; mounting through fsapfsmount"
+        local mount_dir="$dest/apfs-mount"
+        mkdir -p "$mount_dir"
+        fsapfsmount "$raw" "$mount_dir" >"$dest/fsapfsmount.log" 2>&1 || true
+        app="$(find "$mount_dir" -mindepth 2 -maxdepth 6 -name "*.app" -type d 2>/dev/null | head -1 || true)"
+        if [ -n "$app" ]; then
+          # Copy out before the temporary mount is cleaned by the caller.
+          local copied="$dest/apfs-app"
+          cp -a "$app" "$copied"
+          app="$copied/$(basename "$app")"
+        fi
+        fusermount3 -u "$mount_dir" 2>/dev/null || fusermount -u "$mount_dir" 2>/dev/null || true
+      fi
     fi
   fi
   [ -n "$app" ] || die "No .app bundle found inside DMG extraction"
