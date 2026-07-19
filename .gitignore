@@ -1,0 +1,13 @@
+build/
+dist/
+*.deb
+*.rpm
+*.dmg
+node_modules/
+.cache/
+*.log
+
+# editor
+.idea/
+.vscode/
+.DS_Store

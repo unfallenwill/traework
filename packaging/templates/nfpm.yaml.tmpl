@@ -1,0 +1,75 @@
+name: ${PKG_NAME}
+arch: "${NFPM_ARCH}"
+platform: linux
+version: "${VERSION}"
+release: 1
+epoch: 0
+section: devel
+priority: optional
+maintainer: "trae-solo-linux <noreply@users.noreply.github.com>"
+description: |
+  TRAE SOLO - AI coding IDE (unofficial Linux package).
+  .
+  Unofficial community repackaging of TRAE's official macOS build. TRAE
+  SOLO is (c) SPRING (SG) PTE. LTD. This package rewraps the upstream macOS DMG
+  by extracting its cross-platform payload and running it under the matching
+  Linux Electron runtime; no TRAE source code is redistributed beyond the
+  upstream binaries.
+  .
+  Official site: https://www.trae.ai
+vendor: "SPRING (SG) PTE. LTD. (packaged unofficially)"
+homepage: "https://www.trae.ai"
+license: "Proprietary"
+
+deb:
+  fields:
+    Source: "https://www.trae.ai"
+    X-Upstream-Version: "${VERSION}"
+    X-Upstream-Electron: "${ELECTRON_VERSION}"
+  compression: xz
+
+rpm:
+  group: Development/Tools
+
+# Dependencies differ between dpkg and rpm families, so declare them per
+# packager via overrides.
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0
+      - libnotify4
+      - libnss3
+      - libxss1
+      - libxtst6
+      - libasound2
+      - libsecret-1-0
+      - libatspi2.0-0
+      - libgbm1
+      - xdg-utils
+  rpm:
+    depends:
+      - gtk3
+      - libnotify
+      - nss
+      - libXScrnSaver
+      - libXtst
+      - alsa-lib
+      - libsecret
+      - at-spi2-atk
+      - mesa-libgbm
+      - xdg-utils
+
+contents:
+  - src: build/payload
+    dst: ${INSTALL_PREFIX}
+  - src: build/wrapper
+    dst: /usr/bin/${PKG_NAME}
+  - src: build/${PKG_NAME}.desktop
+    dst: /usr/share/applications/${PKG_NAME}.desktop
+  - src: packaging/icons/${PKG_NAME}/hicolor
+    dst: /usr/share/icons/hicolor
+
+scripts:
+  postinstall: build/scripts/postinst
+  preremove: build/scripts/prerm
+  postremove: build/scripts/postrm

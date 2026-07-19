@@ -1,0 +1,45 @@
+MIT License
+
+Copyright (c) 2025 trae-solo-linux contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+TRAE SOLO APPLICATION — ADDITIONAL NOTICE (NOT PART OF THE MIT LICENSE)
+================================================================================
+
+This repository DOES NOT distribute TRAE SOLO application binaries, source code,
+or assets. TRAE SOLO is proprietary software owned by SPRING (SG) PTE. LTD.
+All rights reserved.
+
+To produce the unofficial Linux packages distributed as Releases of this
+repository, the build pipeline obtains the official macOS .dmg from TRAE's
+own distribution channels (downloaded by the user, or fetched from official
+URLs at build time). The build pipeline performs a host-swap conversion so
+the cross-platform Electron payload runs on Linux; no TRAE SOLO source code
+is modified or redistributed beyond what is contained in the user's own
+copy of the macOS DMG.
+
+The MIT license above applies only to the wrapper scripts, templates, build
+tooling, documentation, and Linux compatibility glue in this repository.
+It does not grant any rights to TRAE SOLO application code, binaries, or
+trademarks.
+
+" TRAE " and " TRAE SOLO " are trademarks of SPRING (SG) PTE. LTD.,
+used here for identification only.
