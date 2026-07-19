@@ -108,7 +108,16 @@ const MAIN_JS = path.join(APP_ROOT, "out", "main.js");
 patch(MAIN_JS, (s) => {
   const hidden = "this.c.setMenuBarVisibility(!1)";
   const visible = 'process.platform==="linux"?(this.c.setMenuBarVisibility(!0),this.c.autoHideMenuBar=!1):this.c.setMenuBarVisibility(!1)';
-  return s.includes(visible) ? s : s.replace(hidden, visible);
+  let next = s.includes(visible) ? s : s.replace(hidden, visible);
+
+  // The main VS Code workbench applies window.menuBarVisibility after the
+  // BrowserWindow has been created, which can hide the menu again. Force the
+  // final workbench policy to "visible" on Linux; user/macOS/Windows behavior
+  // remains unchanged.
+  const menuPolicy = 'Xb(){let e=bme(this.w);return["visible","toggle","hidden"].indexOf(e)<0&&(e="classic"),e}';
+  const linuxMenuPolicy = 'Xb(){if(process.platform==="linux")return"visible";let e=bme(this.w);return["visible","toggle","hidden"].indexOf(e)<0&&(e="classic"),e}';
+  if (!next.includes(linuxMenuPolicy)) next = next.replace(menuPolicy, linuxMenuPolicy);
+  return next;
 });
 
 // The upstream Chinese localization is macOS-specific and calls Finder
