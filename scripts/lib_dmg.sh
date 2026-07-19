@@ -27,7 +27,9 @@ dmg_extract() {
   local log="$dest/7z-extract.log"
   # 7z reads UDIF/HFS+ directly. It often exits non-zero on these images even
   # when extraction succeeds, so we check for the app bundle rather than the rc.
-  7z x -y -bd -o"$dest" "$dmg" >"$log" 2>&1 || warn "7z reported errors (often benign for UDIF); see $log"
+  local seven_zip="7z"
+  command -v 7zz >/dev/null 2>&1 && seven_zip="7zz"
+  "$seven_zip" x -y -bd -o"$dest" "$dmg" >"$log" 2>&1 || warn "$seven_zip reported errors; see $log"
   local app
   # The DMG has a top-level directory (e.g. "TRAE Work/") containing the .app.
   app="$(find "$dest" -mindepth 2 -maxdepth 6 -name "*.app" -type d 2>/dev/null | head -1 || true)"
@@ -36,7 +38,7 @@ dmg_extract() {
     local raw="$dest/disk-image.raw"
     dmg2img -i "$dmg" -o "$raw" >"$dest/dmg2img.log" 2>&1 || true
     if [ -s "$raw" ]; then
-      7z x -y -bd -o"$dest/raw" "$raw" >"$dest/7z-raw-extract.log" 2>&1 || true
+      "$seven_zip" x -y -bd -o"$dest/raw" "$raw" >"$dest/7z-raw-extract.log" 2>&1 || true
       app="$(find "$dest/raw" -mindepth 2 -maxdepth 6 -name "*.app" -type d 2>/dev/null | head -1 || true)"
       if [ -z "$app" ] && command -v fsapfsmount >/dev/null 2>&1; then
         warn "DMG contains APFS; mounting through fsapfsmount"
