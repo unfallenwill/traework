@@ -24,7 +24,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full jq python3 perl curl
+          sudo apt-get install -y p7zip-full dmg2img jq python3 perl curl
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 

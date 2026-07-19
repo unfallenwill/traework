@@ -31,6 +31,15 @@ dmg_extract() {
   local app
   # The DMG has a top-level directory (e.g. "TRAE Work/") containing the .app.
   app="$(find "$dest" -mindepth 2 -maxdepth 6 -name "*.app" -type d 2>/dev/null | head -1 || true)"
+  if [ -z "$app" ] && command -v dmg2img >/dev/null 2>&1; then
+    warn "7z could not extract this DMG; retrying through dmg2img"
+    local raw="$dest/disk-image.raw"
+    dmg2img -i "$dmg" -o "$raw" >"$dest/dmg2img.log" 2>&1 || true
+    if [ -s "$raw" ]; then
+      7z x -y -bd -o"$dest/raw" "$raw" >"$dest/7z-raw-extract.log" 2>&1 || true
+      app="$(find "$dest/raw" -mindepth 2 -maxdepth 6 -name "*.app" -type d 2>/dev/null | head -1 || true)"
+    fi
+  fi
   [ -n "$app" ] || die "No .app bundle found inside DMG extraction"
   info "Found app bundle: $(basename "$app")"
   echo "$app"
