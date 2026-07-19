@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +24,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y p7zip-full 7zip dmg2img libfsapfs-utils jq python3 perl curl
+          sudo apt-get install -y 7zip dmg2img libfsapfs-utils jq python3 perl curl
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
