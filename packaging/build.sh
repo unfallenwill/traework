@@ -53,7 +53,10 @@ if [ -z "$PRODUCT_VERSION" ]; then
     PRODUCT_VERSION="$(printf '%s\n' "$DMG_URL" | sed -nE 's#^.*/stable/([^/]+)/darwin/.*#\1#p' | head -1)"
   fi
   if [ -z "$PRODUCT_VERSION" ]; then
-    PRODUCT_VERSION="$(node -e "console.log(require('$PAYLOAD/build-info.json').upstream_version)")"
+    # For a local DMG there is no CDN release path. Use the version embedded
+    # in resources/app/package.json (the actual application payload), not the
+    # outer DMG wrapper's CFBundleShortVersionString.
+    PRODUCT_VERSION="$(node -e "console.log(require('$PAYLOAD/build-info.json').payload_version)")"
   fi
 fi
 ELECTRON_VERSION="$(node -e "console.log(require('$PAYLOAD/build-info.json').electron_version)")"
