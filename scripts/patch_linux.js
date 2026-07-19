@@ -99,6 +99,18 @@ patch(PACKAGE_JSON, (s) => {
   return changed ? JSON.stringify(j, null, 2) : null;
 });
 
+// TRAE's macOS window policy hides the native Electron menu bar. On Linux
+// that removes the only application menu (File/Edit/View/Help), so restore it
+// for the main workbench windows while retaining the upstream behavior on
+// macOS and Windows. The generated main.js is minified, therefore this is an
+// intentionally narrow, idempotent string replacement.
+const MAIN_JS = path.join(APP_ROOT, "out", "main.js");
+patch(MAIN_JS, (s) => {
+  const hidden = "this.c.setMenuBarVisibility(!1)";
+  const visible = 'process.platform==="linux"?(this.c.setMenuBarVisibility(!0),this.c.autoHideMenuBar=!1):this.c.setMenuBarVisibility(!1)';
+  return s.includes(visible) ? s : s.replace(hidden, visible);
+});
+
 // Some upstream packages call `process.platform === 'darwin'` checks and refer
 // to resources/darwin/* assets. We don't delete those — Electron doesn't load
 // them on Linux, so it's harmless and keeps the diff against upstream minimal.
