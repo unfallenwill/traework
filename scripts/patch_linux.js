@@ -111,6 +111,11 @@ patch(MAIN_JS, (s) => {
   return s.includes(visible) ? s : s.replace(hidden, visible);
 });
 
+// The upstream Chinese localization is macOS-specific and calls Finder
+// “访达”. Use the conventional Linux wording in the shipped zh-CN resources.
+const ZH_CN_MESSAGES = path.join(APP_ROOT, "out", "nls.zh-cn.messages.json");
+patch(ZH_CN_MESSAGES, (s) => s.replaceAll("访达", "文件管理器").replaceAll("程序坞", "任务栏"));
+
 // Some upstream packages call `process.platform === 'darwin'` checks and refer
 // to resources/darwin/* assets. We don't delete those — Electron doesn't load
 // them on Linux, so it's harmless and keeps the diff against upstream minimal.
