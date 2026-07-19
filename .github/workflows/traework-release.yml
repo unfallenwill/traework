@@ -2,6 +2,11 @@ name: Discover and publish TRAE Work
 
 on:
   workflow_dispatch:
+    inputs:
+      dmg_url:
+        description: 'TRAE Work macOS x64 DMG URL'
+        required: false
+        type: string
   schedule:
     - cron: '17 */6 * * *'
 
@@ -26,7 +31,9 @@ jobs:
       - name: Resolve official TRAE Work DMG
         id: upstream
         env:
-          TRAE_DMG_URL: ${{ vars.TRAE_DMG_URL }}
+          # Manual runs may provide an exact DMG. Scheduled runs leave this
+          # empty and let the resolver discover the current official URL.
+          TRAE_DMG_URL: ${{ inputs.dmg_url || vars.TRAE_DMG_URL }}
           TRAE_DOWNLOAD_PAGE: ${{ vars.TRAE_DOWNLOAD_PAGE }}
         run: |
           url="$(bash packaging/resolve-version.sh)"
