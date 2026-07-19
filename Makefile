@@ -17,6 +17,7 @@ help:
 	@echo "Run:"
 	@echo "  make run-app          launch the converted app from build/trae-solo/"
 	@echo "  make install-deps     install prerequisites (curl, 7z, perl, node, nfpm)"
+	@echo "  make vendor-runtime   refresh vendored ByteDance runtime from ELECTRON_DEB"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean            drop build/ and dist/"
@@ -24,12 +25,16 @@ help:
 # ---- Configuration ----------------------------------------------------------
 # Path to the upstream DMG. Override with `make build-app DMG=/path/to/foo.dmg`.
 DMG ?= $(HOME)/下载/TRAE_Work-darwin-x64.dmg
+ELECTRON_DEB ?= $(HOME)/下载/Trae-linux-x64 (3).deb
 ARCH ?= x64
 PRODUCT_VERSION ?=
 INSTALL_DIR := build/trae-solo
 
 # ---- Build ------------------------------------------------------------------
-.PHONY: all build-app package deb rpm install-deps run-app clean
+.PHONY: all build-app package deb rpm install-deps vendor-runtime run-app clean
+
+vendor-runtime:
+	./scripts/vendor_linux_runtime.sh "$(ELECTRON_DEB)"
 
 all: build-app package
 

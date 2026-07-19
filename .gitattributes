@@ -1,1 +1,7 @@
+# ByteDance's patched Electron and the Linux native overlay contain files well
+# above GitHub's 100 MiB object limit. Keep the extracted, directly runnable
+# vendor payload in Git LFS instead of committing the original .deb archive.
+vendor/bytedance-electron-linux-x64/runtime/** filter=lfs diff=lfs merge=lfs -text
+vendor/bytedance-electron-linux-x64/app-overlay/** filter=lfs diff=lfs merge=lfs -text
+
 vendor/** filter=lfs diff=lfs merge=lfs -text

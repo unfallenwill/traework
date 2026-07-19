@@ -41,23 +41,23 @@ sha256sum -c checksums_trae-solo_0.1.36_amd64.txt
 
 需求：`curl`、`7z`（p7zip）、`perl`、`node`/`npm`、`dpkg-deb`，和 [`nfpm`](https://github.com/goreleaser/nfpm)。
 
-除了 macOS DMG，还需要一份官方的 **`Trae-linux-x64.deb`** —— 它是 ByteDance 魔改版 Linux Electron 的唯一公开来源（见下文）。把 DMG 和 deb 都备好后：
+首次构建需要一份官方的 **`Trae-linux-x64.deb`**。先将 ByteDance 运行时和 Linux 原生模块写入仓库（建议使用 Git LFS）：
 
 ```bash
+./scripts/vendor_linux_runtime.sh "/path/to/Trae-linux-x64.deb"
+
 # 直接产出一个可运行的 Linux app（写到 build/trae-solo/）
 ./install.sh \
   --dmg "/path/to/TRAE_Work-darwin-x64.dmg" \
-  --electron-deb "/path/to/Trae-linux-x64.deb" \
   --install-dir build/trae-solo
 ./build/trae-solo/start.sh            # 启动它
 
 # 产出 .deb + .rpm（写到 dist/）
 DMG="/path/to/TRAE_Work-darwin-x64.dmg" \
-ELECTRON_DEB="/path/to/Trae-linux-x64.deb" \
   ./packaging/build.sh
 ```
 
-> `--electron-deb` / `ELECTRON_DEB` 未提供时，会在 `~/.cache/trae-solo-linux`、`~/下载`、`~/Downloads` 自动查找 `Trae-linux-x64*.deb`。
+运行时保存在 `vendor/bytedance-electron-linux-x64/`，后续构建不再重复抽取 deb。
 
 `ARCH` 默认 `x64`。`./packaging/build.sh` 接受的环境变量：
 

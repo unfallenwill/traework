@@ -69,6 +69,13 @@ patch(PRODUCT_JSON, (s) => {
     changed = true;
   }
 
+  // Keep the Linux window identity aligned with trae-solo.desktop and its
+  // hicolor icon. GNOME/Wayland shows a generic gear when these names differ.
+  if (j.linuxIconName !== PKG_NAME) {
+    j.linuxIconName = PKG_NAME;
+    changed = true;
+  }
+
   // The tray icon on Linux is best handled by the app's own tray logic if it
   // has one; otherwise we fall back to the app icon. Don't touch.
   return changed ? JSON.stringify(j, null, 2) : null;

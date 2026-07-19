@@ -30,74 +30,29 @@
 # not by its own filename.
 # shellcheck shell=bash
 
-# $1 = path to the donor official Trae-linux-x64.deb
-# $2 = install root dir (the future /opt/trae-solo)
+# The donor is extracted once by scripts/vendor_linux_runtime.sh and committed
+# under vendor/ with Git LFS. Normal builds copy that ready-to-run tree.
+#
+# $1 = install root dir (the future /opt/trae-solo)
 electron_install() {
-  local deb="$1" dest="$2"
-  [ -f "$deb" ] || die "Donor Electron .deb not found: $deb
-  Trae needs ByteDance's patched Electron (it imports aha* from 'electron').
-  Pass --electron-deb /path/to/Trae-linux-x64.deb (or set TRAE_ELECTRON_DEB)."
-
+  local dest="$1"
+  local runtime="$TRAE_VENDOR_DIR/runtime"
+  local bin="$runtime/electron"
+  [ -f "$TRAE_VENDOR_DIR/manifest.json" ] || die "Vendored runtime is missing.
+Run: scripts/vendor_linux_runtime.sh /path/to/Trae-linux-x64.deb"
+  [ -x "$bin" ] || die "Vendored Electron binary missing or not executable: $bin"
   mkdir -p "$dest"
-  require_cmd dpkg-deb find
-
-  # Reusable extraction scratch under the cache dir (avoids leaking mktemp dirs
-  # on die(); re-runs just re-extract over the top).
-  local scratch="$TRAE_CACHE_DIR/_electron_runtime"
-  rm -rf "$scratch"; mkdir -p "$scratch"
-  info "Unpacking donor Electron from ${deb##*/} ..."
-  dpkg-deb -x "$deb" "$scratch/root" || die "dpkg-deb extraction failed for $deb"
-
-  # Locate the runtime dir. Official Trae installs under /usr/share/trae; we
-  # auto-detect via icudtl.dat (always shipped next to the Electron binary) and
-  # allow TRAE_DEB_RUNTIME_DIR to override for future layout changes.
-  local root="$scratch/root"
-  local runtime="${TRAE_DEB_RUNTIME_DIR:-}"
-  if [ -z "$runtime" ]; then
-    runtime="$(find "$root" -type f -name icudtl.dat -printf '%h\n' 2>/dev/null | head -1)"
-    [ -n "$runtime" ] || die "No Electron runtime found inside $deb (missing icudtl.dat)."
-  else
-    runtime="$root/${runtime#/}"
-  fi
-  info "Runtime dir: ${runtime#$root}"
-
-  # Find the Electron binary (donor names it 'trae'; stock would be 'electron').
-  local bin=""
-  local cand
-  for cand in "$runtime/trae" "$runtime/electron"; do
-    [ -f "$cand" ] && { bin="$cand"; break; }
-  done
-  [ -n "$bin" ] || die "Electron binary not found in $runtime"
 
   # Guardrail: refuse a non-fork donor. Stock Electron would reintroduce the
   # ahaDeviceService SyntaxError, so fail loudly rather than ship a broken app.
   if ! grep -aq 'ahaNet' "$bin" || ! grep -aq 'ahaDeviceService' "$bin"; then
-    die "Donor $deb does not look like ByteDance's patched Electron
+    die "Vendored runtime does not look like ByteDance's patched Electron
   (binary lacks the ahaNet/ahaDeviceService symbols). Stock Electron cannot
-  host Trae's payload. Use the official Trae-linux-x64.deb as --electron-deb."
+  host Trae's payload. Refresh vendor/ from the official Trae Linux package."
   fi
 
-  # Copy the runtime tree, EXCLUDING the donor's app payload + packaging extras:
-  #   resources/  -> we stage the DMG payload into resources/app ourselves
-  #   node_modules/ -> DMG payload carries its own (native-swapped) node_modules
-  #   bin/        -> trae-solo's launcher replaces the CLI shim
-  info "Copying Electron runtime -> $dest"
-  local name
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    case "$name" in
-      resources|node_modules|bin) continue ;;   # provided by DMG payload / launcher
-    esac
-    cp -a "$runtime/$name" "$dest/"
-  done < <(find "$runtime" -mindepth 1 -maxdepth 1 -printf '%f\n')
-
-  # Rename the binary so the launcher's `exec $SCRIPT_DIR/electron` resolves.
-  if [ -f "$dest/trae" ] && [ ! -e "$dest/electron" ]; then
-    mv "$dest/trae" "$dest/electron"
-    [ -f "$dest/trae.asc" ] && mv "$dest/trae.asc" "$dest/electron.asc"
-  elif [ -f "$dest/trae" ] && [ -f "$dest/electron" ]; then
-    rm -f "$dest/trae" "$dest/trae.asc"
-  fi
+  info "Copying vendored ByteDance Electron runtime -> $dest"
+  cp -a "$runtime/." "$dest/"
 
   chmod +x "$dest/electron" "$dest/chrome-sandbox" "$dest/chrome_crashpad_handler" 2>/dev/null || true
   [ -x "$dest/electron" ] || die "Electron binary not executable after install: $dest/electron"
@@ -105,5 +60,8 @@ electron_install() {
     warn "chrome-sandbox missing from donor; launcher will fall back to --no-sandbox."
   fi
 
-  info "Electron runtime installed (forked build, aha* exports present)."
+  TRAE_DONOR_VERSION="$(node -p "require('$TRAE_VENDOR_DIR/manifest.json').source_package_version" 2>/dev/null || true)"
+  TRAE_DONOR_APP_VERSION="$(node -p "require('$TRAE_VENDOR_DIR/manifest.json').donor_app_version" 2>/dev/null || true)"
+  export TRAE_DONOR_VERSION TRAE_DONOR_APP_VERSION
+  info "Electron runtime installed from vendor/ (forked build, aha* exports present)."
 }

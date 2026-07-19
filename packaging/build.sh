@@ -7,8 +7,8 @@
 #   PRODUCT_VERSION  upstream version (auto-detected from the DMG if unset)
 #   DMG              path to a local DMG
 #   DMG_URL          URL to download the DMG from (used if DMG is unset)
-#   ELECTRON_DEB     path to the official Trae-linux-x64.deb = donor for the
-#                    patched Electron runtime (aha* exports). REQUIRED.
+#   The ByteDance Electron runtime is vendored in the repository; refresh it
+#   separately with scripts/vendor_linux_runtime.sh when the donor changes.
 #   ARCH             target arch (default: x64)
 set -Eeuo pipefail
 
@@ -20,9 +20,7 @@ ARCH="${ARCH:-x64}"
 DMG="${DMG:-}"
 DMG_URL="${DMG_URL:-}"
 PRODUCT_VERSION="${PRODUCT_VERSION:-}"
-# ELECTRON_DEB / TRAE_ELECTRON_DEB flow through to install.sh via env.
-[ -n "${ELECTRON_DEB:-}" ] && [ -z "${TRAE_ELECTRON_DEB:-}" ] && export TRAE_ELECTRON_DEB="$ELECTRON_DEB"
-require_cmd curl nfpm perl node npm 7z python3 unzip tar
+require_cmd curl nfpm perl node 7z python3
 
 resolve_arch "$ARCH"   # exports TRAE_DEB_ARCH, TRAE_RPM_ARCH, TRAE_NPM_ARCH, TRAE_ELECTRON_ARCH
 
@@ -58,12 +56,12 @@ info "Packaging TRAE SOLO $PRODUCT_VERSION (Electron $ELECTRON_VERSION) $TRAE_DE
 # the packaging icons tree so the generated .deb/.rpm carry a full hicolor set.
 ICNS="$PAYLOAD/Resources/TRAE SOLO.icns"
 if [ -f "$ICNS" ]; then
-  "$ROOT/packaging/extract-icon.sh" "$ICNS" >/dev/null
+  TRAE_PKG_NAME="$TRAE_PKG_NAME" "$ROOT/packaging/extract-icon.sh" "$ICNS" >/dev/null
 fi
 # Also accept the modern location some DMGs use.
 ICNS2="$PAYLOAD/resources/TRAE SOLO.icns"
 if [ ! -f "$ICNS" ] && [ -f "$ICNS2" ]; then
-  "$ROOT/packaging/extract-icon.sh" "$ICNS2" >/dev/null
+  TRAE_PKG_NAME="$TRAE_PKG_NAME" "$ROOT/packaging/extract-icon.sh" "$ICNS2" >/dev/null
 fi
 
 # ---- Render templates (perl ${VAR}) -----------------------------------------

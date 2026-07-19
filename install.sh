@@ -18,6 +18,8 @@ export ROOT="$SCRIPT_DIR"
 . "$SCRIPT_DIR/scripts/lib_native.sh"
 # shellcheck source=scripts/lib_electron.sh
 . "$SCRIPT_DIR/scripts/lib_electron.sh"
+# shellcheck source=scripts/lib_linux.sh
+. "$SCRIPT_DIR/scripts/lib_linux.sh"
 
 DMG=""
 INSTALL_DIR="$SCRIPT_DIR/build/trae-solo"
@@ -25,19 +27,23 @@ ARCH="x64"   # internal default; only x64 is supported
 
 usage() {
   cat <<EOF
-Usage: $0 --dmg <path> --electron-deb <path> [--install-dir <dir>]
+Usage: $0 --dmg <path> [--install-dir <dir>]
   --dmg <path>          macOS DMG to convert (or set TRAE_UPSTREAM_DMG_URL)
-  --electron-deb <path> official Trae-linux-x64.deb = donor for the patched
-                         Electron runtime (aha* exports). Or set TRAE_ELECTRON_DEB.
   --install-dir <dir>   output dir (default: build/trae-solo)
   --arch <x64>          target Linux architecture (default: x64)
+
+The patched Electron runtime and Linux native overlay are read from:
+  $TRAE_VENDOR_DIR
+Refresh them once with scripts/vendor_linux_runtime.sh <official-trae.deb>.
 EOF
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --dmg)         DMG="$2"; shift 2 ;;
-    --electron-deb) TRAE_ELECTRON_DEB="$2"; shift 2 ;;
+    --electron-deb)
+      die "--electron-deb is no longer a per-build input.
+Run scripts/vendor_linux_runtime.sh '$2' once, then build without this flag." ;;
     --install-dir) INSTALL_DIR="$2"; shift 2 ;;
     --arch)        ARCH="$2"; shift 2 ;;
     -h|--help)     usage; exit 0 ;;
@@ -45,25 +51,12 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-require_cmd 7z curl perl node npm python3 unzip tar file strings dpkg-deb find
+require_cmd 7z curl perl node python3 file strings find
 resolve_arch "$ARCH"
 
-# Resolve the donor Electron .deb -- REQUIRED. Trae imports proprietary aha*
-# exports from 'electron' that exist only in ByteDance's patched Electron,
-# which we extract from the official Trae Linux package. See lib_electron.sh.
-if [ -z "${TRAE_ELECTRON_DEB:-}" ]; then
-  for _d in "$TRAE_CACHE_DIR" "$HOME/下载" "$HOME/Downloads" "."; do
-    _f="$(ls "$_d"/Trae-linux-x64*.deb "$_d"/trae_*_amd64.deb 2>/dev/null | head -1)"
-    [ -n "$_f" ] && { TRAE_ELECTRON_DEB="$_f"; break; }
-  done
-fi
-if [ -z "${TRAE_ELECTRON_DEB:-}" ] || [ ! -f "$TRAE_ELECTRON_DEB" ]; then
-  die "Donor Electron .deb is required.
-  Trae imports proprietary aha* APIs from 'electron' that only ByteDance's
-  patched Electron provides. Pass --electron-deb /path/to/Trae-linux-x64.deb
-  (or set TRAE_ELECTRON_DEB)."
-fi
-info "Donor Electron: $TRAE_ELECTRON_DEB"
+[ -f "$TRAE_VENDOR_DIR/manifest.json" ] || die "Vendored ByteDance runtime missing at $TRAE_VENDOR_DIR.
+Run scripts/vendor_linux_runtime.sh /path/to/Trae-linux-x64.deb once."
+info "Vendored Linux runtime: $TRAE_VENDOR_DIR"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -79,19 +72,15 @@ info "==> Detecting versions"
 ELECTRON_VERSION="$(dmg_detect_electron "$APP")"
 APP_VERSION="$(dmg_app_version "$APP")"
 APP_DISPLAY="$(dmg_app_display_name "$APP")"
-info "$APP_DISPLAY $APP_VERSION / Electron $ELECTRON_VERSION / target linux-$TRAE_ELECTRON_ARCH"
+PAYLOAD_VERSION="$(node -p "require('$CONTENTS/Resources/app/package.json').version" 2>/dev/null || true)"
+info "$APP_DISPLAY $APP_VERSION (payload $PAYLOAD_VERSION) / Electron $ELECTRON_VERSION / target linux-$TRAE_ELECTRON_ARCH"
 
 # Cross-check the DMG Trae version against the donor .deb. The aha* API surface
 # is stable within a Trae release line, but a drift is worth warning about.
-DONOR_VER="$(dpkg-deb -f "$TRAE_ELECTRON_DEB" Version 2>/dev/null || true)"
-if [ -n "$DONOR_VER" ] && [ -n "$APP_VERSION" ]; then
-  case "$DONOR_VER" in
-    "$APP_VERSION"|"$APP_VERSION"-*)
-      info "Version match: DMG $APP_VERSION == donor $DONOR_VER" ;;
-    *)
-      warn "Version mismatch: DMG payload=$APP_VERSION, donor Electron=$DONOR_VER"
-      warn "  aha* API drift between Trae versions may cause runtime errors." ;;
-  esac
+DONOR_VER="$(node -p "require('$TRAE_VENDOR_DIR/manifest.json').source_package_version" 2>/dev/null || true)"
+DONOR_APP_VER="$(node -p "require('$TRAE_VENDOR_DIR/manifest.json').donor_app_version" 2>/dev/null || true)"
+if [ -n "$DONOR_APP_VER" ] && [ "$DONOR_APP_VER" = "$PAYLOAD_VERSION" ]; then
+  info "Native ABI version match: DMG payload $PAYLOAD_VERSION == Linux donor $DONOR_APP_VER"
 fi
 
 info "==> Staging app resources -> $INSTALL_DIR"
@@ -109,17 +98,13 @@ node "$SCRIPT_DIR/scripts/patch_linux.js" "$APP_ROOT" "$TRAE_PKG_NAME"
 info "==> Stubbing aha* APIs the donor Electron dropped"
 node "$SCRIPT_DIR/scripts/patch_aha_shim.js" "$APP_ROOT"
 
-info "==> Stripping macOS/Windows-only addons (GUI)"
-if [ -d "$APP_ROOT/node_modules" ]; then
-  native_strip_macos "$APP_ROOT/node_modules"
-  native_install_ripgrep_linux "$APP_ROOT/node_modules"
-fi
+info "==> Installing vendored ByteDance forked Linux Electron"
+electron_install "$INSTALL_DIR"
 
-info "==> Installing ByteDance forked Linux Electron (from donor .deb)"
-electron_install "$TRAE_ELECTRON_DEB" "$INSTALL_DIR"
-
-info "==> Rebuilding native modules against Linux Electron"
-native_electron_rebuild "$APP_ROOT" "$INSTALL_DIR" "$ELECTRON_VERSION" "$TRAE_ELECTRON_ARCH"
+info "==> Replacing DMG platform components with vendored Linux builds"
+linux_overlay_install "$APP_ROOT" "$TRAE_VENDOR_DIR"
+linux_prune_foreign_binaries "$APP_ROOT"
+linux_validate_payload "$APP_ROOT" "$INSTALL_DIR"
 
 info "==> Writing launcher"
 cp "$SCRIPT_DIR/launcher/start.sh.template" "$INSTALL_DIR/start.sh"
@@ -130,8 +115,9 @@ cat > "$INSTALL_DIR/build-info.json" <<EOF
 {
   "product": "TRAE SOLO",
   "upstream_version": "$APP_VERSION",
+  "payload_version": "$PAYLOAD_VERSION",
   "electron_version": "$ELECTRON_VERSION",
-  "electron_source": "bytedance-fork (donor Trae-linux-x64.deb)",
+  "electron_source": "vendor/bytedance-electron-linux-x64/runtime",
   "donor_deb_version": "$DONOR_VER",
   "target_arch": "linux-$TRAE_ELECTRON_ARCH",
   "app_id": "$TRAE_APP_ID",

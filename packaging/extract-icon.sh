@@ -9,7 +9,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ICON_DIR="$ROOT/packaging/icons/trae/hicolor"
+ICON_NAME="${TRAE_PKG_NAME:-trae-solo}"
+ICON_DIR="$ROOT/packaging/icons/$ICON_NAME/hicolor"
 
 ICNS="${1:-}"
 if [ -z "$ICNS" ]; then
@@ -25,14 +26,14 @@ fi
   exit 1
 }
 
-python3 - "$ICNS" "$ICON_DIR" <<'PY'
+python3 - "$ICNS" "$ICON_DIR" "$ICON_NAME" <<'PY'
 import sys, os
 from PIL import Image
-icns, outdir = sys.argv[1], sys.argv[2]
+icns, outdir, icon_name = sys.argv[1], sys.argv[2], sys.argv[3]
 sizes = [16, 32, 48, 64, 128, 256, 512]
 img = Image.open(icns).convert("RGBA")
 for s in sizes:
-    p = os.path.join(outdir, f"{s}x{s}", "apps", "trae.png")
+    p = os.path.join(outdir, f"{s}x{s}", "apps", f"{icon_name}.png")
     os.makedirs(os.path.dirname(p), exist_ok=True)
     img.resize((s, s), Image.LANCZOS).save(p, "PNG")
 print(f"[icon] wrote {len(sizes)} sizes to {outdir}")
