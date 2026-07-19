@@ -46,7 +46,15 @@ rm -rf "$PAYLOAD"
 
 # ---- Version ----------------------------------------------------------------
 if [ -z "$PRODUCT_VERSION" ]; then
-  PRODUCT_VERSION="$(node -e "console.log(require('$PAYLOAD/build-info.json').upstream_version)")"
+  # Official CDN URLs carry the release version in /stable/<version>/darwin/.
+  # Prefer that authoritative release identifier over the stale macOS
+  # CFBundleShortVersionString (older TRAE Work DMGs reported 0.1.36 there).
+  if [ -n "$DMG_URL" ]; then
+    PRODUCT_VERSION="$(printf '%s\n' "$DMG_URL" | sed -nE 's#^.*/stable/([^/]+)/darwin/.*#\1#p' | head -1)"
+  fi
+  if [ -z "$PRODUCT_VERSION" ]; then
+    PRODUCT_VERSION="$(node -e "console.log(require('$PAYLOAD/build-info.json').upstream_version)")"
+  fi
 fi
 ELECTRON_VERSION="$(node -e "console.log(require('$PAYLOAD/build-info.json').electron_version)")"
 info "Packaging TRAE SOLO $PRODUCT_VERSION (Electron $ELECTRON_VERSION) $TRAE_DEB_ARCH/$TRAE_RPM_ARCH"
